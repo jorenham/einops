@@ -11,7 +11,7 @@ Layers in einops==0.8.0 were re-implemented
 
 """
 
-from typing import Any, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Generic, TypeVar, cast
 
 import tensorflow as tf
 from tensorflow.keras.layers import Layer
@@ -25,8 +25,16 @@ __author__ = "Alex Rogozhnikov"
 _InputT_contra = TypeVar("_InputT_contra", contravariant=True)
 _OutputT_co = TypeVar("_OutputT_co", covariant=True)
 
+# `tensorflow.keras.layers.Layer` is only generic in the stubs, not at runtime.
+if TYPE_CHECKING:
 
-class Rearrange(RearrangeMixin, Layer[_InputT_contra, _OutputT_co]):
+    class _BaseLayer(Layer[_InputT_contra, _OutputT_co], Generic[_InputT_contra, _OutputT_co]): ...
+else:
+
+    class _BaseLayer(Layer, Generic[_InputT_contra, _OutputT_co]): ...
+
+
+class Rearrange(RearrangeMixin, _BaseLayer[_InputT_contra, _OutputT_co]):
     def build(self, input_shape: Any) -> None:
         pass  # layer does not have any parameters to be initialized
 
@@ -37,7 +45,7 @@ class Rearrange(RearrangeMixin, Layer[_InputT_contra, _OutputT_co]):
         return {"pattern": self.pattern, **self.axes_lengths}
 
 
-class Reduce(ReduceMixin, Layer[_InputT_contra, _OutputT_co]):
+class Reduce(ReduceMixin, _BaseLayer[_InputT_contra, _OutputT_co]):
     def build(self, input_shape: Any) -> None:
         pass  # layer does not have any parameters to be initialized
 
@@ -48,7 +56,7 @@ class Reduce(ReduceMixin, Layer[_InputT_contra, _OutputT_co]):
         return {"pattern": self.pattern, "reduction": self.reduction, **self.axes_lengths}
 
 
-class EinMix(_EinmixMixin, Layer[_InputT_contra, _OutputT_co]):
+class EinMix(_EinmixMixin, _BaseLayer[_InputT_contra, _OutputT_co]):
     def _create_parameters(self, weight_shape, weight_bound, bias_shape, bias_bound) -> None:
         # this method is called in __init__,
         #  but we postpone actual creation to build(), as TF instruction suggests
